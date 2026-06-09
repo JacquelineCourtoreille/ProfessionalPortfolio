@@ -1,7 +1,7 @@
 # ProfessionalPortfolio
 This repository contains software development projects that demonstrate my skills in application design, database architecture, full-stack development, and modern software development practices.
 
-Current project(s): Meal Suggester Web App and Market App
+Current projects: Meal Suggester Web App and Market App
 
 ## Meal Suggester Web App
 The Meal Suggester Web App helps users discover meals based on cuisine, ingredients, and dietary preferences. Including both passive discovery (“Inspire Me”) and active filtering (“Find a Meal”) functionality.
