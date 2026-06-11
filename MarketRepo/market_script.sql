@@ -1,74 +1,28 @@
--- Database: MarketDB
-
-DROP DATABASE IF EXISTS "MarketDB";
-
-CREATE DATABASE "MarketDB"
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'English_Canada.1252'
-    LC_CTYPE = 'English_Canada.1252'
-    LOCALE_PROVIDER = 'libc'
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1
-    IS_TEMPLATE = False;
-
-	CREATE TYPE useraccount_status AS ENUM
-	(
-		'active',
-		'suspended',
-		'review-pending',
-		'banned'
-	);
-
-	CREATE TYPE shop_status AS ENUM
-	(
-		'active',
-		'active-temporary-pause',
-		'suspended',
-		'review-pending',
-		'banned'
-	);
-	
-	CREATE TYPE order_status AS ENUM 
-	(
-		'pending',
-		'paid',
-		'refunded',
-		'cancelled',
-		'failed'
-	);
-
-	CREATE TYPE product_status AS ENUM
-	(
-		'draft',
-		'active-listing',
-		'paused-listing',
-		'out-of-stock',
-		'review-pending',
-		'suspended'
-	);
-	
-	CREATE TYPE payment_status AS ENUM
-	(
-		'pending',
-		'paid',
-		'refunded',
-		'cancelled',
-		'failed'
-	);
-
-	CREATE TYPE payout_status AS ENUM
-	(
-		'pending',
-		'scheduled',
-		'processing',
-		'paid',
-		'failed',
-		'reversed'
-	);
-	
-	/* AUTHENTICATION NOTE
+/* Drop Tables Script
+	DROP TABLE PayoutItem;
+	DROP TABLE Payout;
+	DROP TABLE PaymentEvent;
+	DROP TABLE Payment;
+	DROP TABLE OrderItem;
+	DROP TABLE OrderSnapshotAddress;
+	DROP TABLE ProductOrder;
+	DROP TABLE ProductCategory;
+	DROP TABLE Category;
+	DROP TABLE PostMedia;
+	DROP TABLE ProductPost;
+	DROP TABLE ProductMedia;
+	DROP TABLE Product;
+	DROP TABLE UserBookmark;
+	DROP TABLE PostComment;
+	DROP TABLE PostLike;
+	DROP TABLE Post;
+	DROP TABLE Follow;
+	DROP TABLE Shop;
+	DROP TABLE UserAddress;
+	DROP TABLE UserProfile;
+	DROP TABLE UserAccount;
+*/
+/* AUTHENTICATION NOTE
 
 		This project is intended to use Supabase Auth.
 
@@ -102,13 +56,15 @@ CREATE DATABASE "MarketDB"
 
 */
 
+-- CREATE TABLES --
+
 	CREATE TABLE UserAccount
 	(
 		userID UUID NOT NULL,
 		username VARCHAR(50) NOT NULL,
 		displayName VARCHAR(50) NOT NULL,
 		email VARCHAR(255) NOT NULL,
-		status useraccount_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('active', 'inactive', 'suspended', 'review-pending', 'banned')),
 		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updatedAt TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
 		deletedAt TIMESTAMPTZ NULL,
@@ -166,7 +122,7 @@ CREATE DATABASE "MarketDB"
 		userID UUID UNIQUE NOT NULL,
 		shopName VARCHAR(100) NOT NULL,
 		shopDescription TEXT NOT NULL,
-		status shop_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('active', 'inactive', 'review-pending', 'suspended', 'banned')),
 		stripeAccountID TEXT NOT NULL,
 		isVerified BOOLEAN NOT NULL,
 		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -197,7 +153,9 @@ CREATE DATABASE "MarketDB"
 		CONSTRAINT fk_followinguserid_useraccount
 			FOREIGN KEY (followingUserID)
 			REFERENCES UserAccount(userID)
-			ON DELETE CASCADE
+			ON DELETE CASCADE,
+		CONSTRAINT ck_follow_not_self
+    		CHECK (followerUserID <> followingUserID)
 	);
 
 	CREATE TABLE Post
@@ -287,10 +245,10 @@ CREATE DATABASE "MarketDB"
 		shopID UUID NOT NULL,
 		productTitle VARCHAR(255) NOT NULL,
 		productDescription TEXT NOT NULL,
-		productPrice MONEY NOT NULL CHECK(productPrice >= 0),
+		productPrice NUMERIC(10,2) NOT NULL CHECK(productPrice >= 0),
 		currency CHAR(3) NOT NULL,
 		downloadLimit INT NULL CHECK(downloadLimit >= 0),
-		status product_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('draft', 'active-listing', 'paused-listing', 'review-pending', 'suspended')),
 		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updatedAt TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
 		deletedAt TIMESTAMPTZ NULL,
@@ -310,8 +268,8 @@ CREATE DATABASE "MarketDB"
 		productID UUID NOT NULL,
 		mediaType VARCHAR(20) NOT NULL,
 		mediaURL TEXT NOT NULL,
-		displayOrder INT UNIQUE NOT NULL CHECK(displayOrder >= 0),
-		createdAt TIMESTAMPTZ NOT NULL,
+		displayOrder INT NOT NULL CHECK(displayOrder >= 0),
+		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updatedAt TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
 
 		CONSTRAINT pk_productmedia_productmediaid
@@ -346,7 +304,7 @@ CREATE DATABASE "MarketDB"
 		postID UUID NOT NULL,
 		mediaType VARCHAR(20) NOT NULL CHECK(mediaType IN ('image', 'video', 'gif')),
 		mediaURL TEXT NOT NULL,
-		displayOrder INT UNIQUE NOT NULL CHECK(displayOrder >= 0),
+		displayOrder INT NOT NULL CHECK(displayOrder >= 0),
 		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updatedAt TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
 		
@@ -389,7 +347,7 @@ CREATE DATABASE "MarketDB"
 	(
 		orderID UUID NOT NULL,
 		buyerUserID UUID NOT NULL,
-		status order_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('pending', 'paid', 'refunded', 'cancelled', 'failed')),
 		subtotal NUMERIC(10,2) NOT NULL CHECK(subtotal >= 0),
 		tax NUMERIC(10,2) NOT NULL CHECK(tax >= 0),
 		totalAmount NUMERIC(10,2) NOT NULL CHECK(totalAmount >= 0),
@@ -404,7 +362,6 @@ CREATE DATABASE "MarketDB"
 		CONSTRAINT fk_productorder_useraccount
 			FOREIGN KEY (buyerUserID)
 			REFERENCES UserAccount(userID)
-			ON DELETE CASCADE
 	);
 
 	CREATE TABLE OrderSnapshotAddress
@@ -447,20 +404,16 @@ CREATE DATABASE "MarketDB"
 			PRIMARY KEY (orderItemID),
 		CONSTRAINT fk_orderitem_productorder
 			FOREIGN KEY (orderID)
-			REFERENCES ProductOrder(orderID)
-			ON DELETE CASCADE,
+			REFERENCES ProductOrder(orderID),
 		CONSTRAINT fk_orderitem_product
 			FOREIGN KEY (productID)
-			REFERENCES Product(productID)
-			ON DELETE CASCADE,
+			REFERENCES Product(productID),
 		CONSTRAINT fk_orderitem_shop
 			FOREIGN KEY (shopID)
-			REFERENCES Shop(shopID)
-			ON DELETE CASCADE,
+			REFERENCES Shop(shopID),
 		CONSTRAINT fk_orderitem_useraccount
 			FOREIGN KEY (sellerUserID)
 			REFERENCES UserAccount(userID)
-			ON DELETE CASCADE
 	);
 
 	CREATE TABLE Payment
@@ -473,7 +426,7 @@ CREATE DATABASE "MarketDB"
 		grossAmount NUMERIC(10,2) NOT NULL CHECK(grossAmount >= 0),
 		netAmount NUMERIC(10,2) NOT NULL CHECK(netAmount >= 0),
 		currency CHAR(3) NOT NULL,
-		status payment_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('pending', 'paid', 'refunded', 'cancelled', 'failed')),
 		createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updatedAt TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -482,7 +435,6 @@ CREATE DATABASE "MarketDB"
 		CONSTRAINT fk_payment_order
 			FOREIGN KEY (orderID)
 			REFERENCES ProductOrder(orderID)
-			ON DELETE CASCADE
 	);
 
 	CREATE TABLE PaymentEvent
@@ -490,7 +442,7 @@ CREATE DATABASE "MarketDB"
 		paymentEventID UUID NOT NULL,
 		paymentID UUID NOT NULL,
 		eventType VARCHAR(50) NOT NULL,
-		eventStatus payment_status NULL,
+		eventStatus VARCHAR(20) NULL CHECK(eventStatus IN ('pending', 'paid', 'refunded', 'cancelled', 'failed')),
 		eventAmount NUMERIC(10,2) NULL CHECK(eventAmount >= 0), 
 		currency CHAR(3) NULL,
 		platformFee NUMERIC(10,2) NULL CHECK(platformFee >= 0),
@@ -518,7 +470,7 @@ CREATE DATABASE "MarketDB"
 		providerPayoutID TEXT NULL,
 		totalPayoutAmount NUMERIC(10,2) NOT NULL CHECK(totalPayoutAmount >= 0),
 		currency CHAR(3) NOT NULL,
-		status payout_status NOT NULL,
+		status VARCHAR(20) NOT NULL CHECK(status IN ('pending', 'scheduled', 'processing', 'paid', 'failed', 'reversed')),
 		availableAt TIMESTAMPTZ NULL,
 		initiatedAt TIMESTAMPTZ NULL,
 		completedAt TIMESTAMPTZ NULL,
@@ -532,7 +484,6 @@ CREATE DATABASE "MarketDB"
 		CONSTRAINT fk_payout_shop
 			FOREIGN KEY (shopID)
 			REFERENCES Shop(shopID)
-			ON DELETE CASCADE
 	);
 
 	CREATE TABLE PayoutItem
@@ -554,3 +505,18 @@ CREATE DATABASE "MarketDB"
 			REFERENCES OrderItem(orderItemID)
 			ON DELETE CASCADE	
 	);
+
+
+-- INDEXES --
+
+	CREATE INDEX idx_payout_shopid ON Payout(shopID);
+	CREATE INDEX idx_post_userid ON Post(userID);
+	CREATE INDEX idx_post_shopid ON Post(shopID);
+	CREATE INDEX idx_postcomment_postid ON PostComment(postID);
+	CREATE INDEX idx_postlike_postid ON PostLike(postID);
+	CREATE INDEX idx_userbookmark_postid ON UserBookmark(postID);
+	CREATE INDEX idx_product_shopid ON Product(shopID);
+	CREATE INDEX idx_orderitem_orderid ON OrderItem(orderID);
+	CREATE INDEX idx_orderitem_shopid ON OrderItem(shopID);
+	CREATE INDEX idx_orderitem_selleruserid ON OrderItem(sellerUserID);
+	
