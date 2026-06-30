@@ -50,3 +50,4 @@ namespace MarketSolution
 
 		#endregion
 	}
+}
