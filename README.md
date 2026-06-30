@@ -33,10 +33,13 @@ The project was designed as a portfolio piece to demonstrate:
 - UI filtering logic
 - Separation of data and presentation layers
 - Business rule implementation
+- Test Driven Development
+- Object-Oriented Programming
 - Marketplace workflow design
 - Source control and development workflows
 - Authentication and authorization design
 - Technical documentation
+- Entity Framework
 
 Tech Stack
 - C#/.NET Framework
