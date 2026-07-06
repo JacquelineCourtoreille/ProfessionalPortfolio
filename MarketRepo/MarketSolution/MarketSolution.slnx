@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="MarketSolution/MarketSolution.csproj" />
+  <Project Path="UnitTestsForMarket/UnitTestsForMarket.csproj" Id="1ee1a62f-65ff-49de-b34f-801ef0761a41" />
+</Solution>
