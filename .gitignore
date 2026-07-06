@@ -1,8 +1,15 @@
 ﻿################################################################################
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
+# Visual Studio
+.vs/
+*.user
+*.suo
 
-/.vs/RepoMarket.slnx/FileContentIndex
-/.vs/slnx.sqlite
-/.vs/slnx.sqlite-journal
-/MarketRepo/MarketSolution/.vs
+# Build output
+bin/
+obj/
+
+# Docs (optional)
+*.docx
+
